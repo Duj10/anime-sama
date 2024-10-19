@@ -1,8 +1,15 @@
 vo/*
 vf/*
 data/anime/*
+data/download/*
 data/logs/*
 !vo/
 !vf/
 !data/anime/
+!data/download/
 !data/logs/
+!vo/.gitkeep
+!vf/.gitkeep
+!data/anime/.gitkeep
+!data/download/.gitkeep
+!data/logs/.gitkeep
