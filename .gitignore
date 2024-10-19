@@ -1,2 +1,8 @@
-vo/
-vf/
+vo/*
+vf/*
+data/anime/*
+data/logs/*
+!vo/
+!vf/
+!data/anime/
+!data/logs/
