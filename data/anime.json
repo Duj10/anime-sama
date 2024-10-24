@@ -7,7 +7,11 @@
         "season": "1",
         "langage": "vostfr"
     },
-
+    {
+        "name": "none",
+        "season": "1",
+        "langage": "vf"
+    },
 
 
     {"__comment": "en desou seulment simple download si download tu peux ramplacer par un autre"},
@@ -20,31 +24,11 @@
     {
         "name": "none",
         "season": "1",
-        "langage": "vf"
+        "langage": "vostfr"
     },
     {
         "name": "none",
-        "season": "3",
-        "langage": "vf"
-    },
-    {
-        "name": "none",
-        "season": "4",
-        "langage": "vf"
-    },
-    {
-        "name": "none",
-        "season": "5",
-        "langage": "vf"
-    },
-    {
-        "name": "none",
-        "season": "6",
-        "langage": "vf"
-    },
-    {
-        "name": "none",
-        "season": "7",
+        "season": "1",
         "langage": "vf"
     }
 ]
