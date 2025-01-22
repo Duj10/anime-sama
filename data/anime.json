@@ -3,31 +3,6 @@
     {"__comment": "en desou seulment auto download des serie qui sorte"},
 
     {
-        "name": "dandadan",
-        "season": "1",
-        "langage": "vostfr"
-    },
-    {
-        "name": "blue-box",
-        "season": "1",
-        "langage": "vostfr"
-    },
-    {
-        "name": "re-zero",
-        "season": "3",
-        "langage": "vostfr"
-    },
-    {
-        "name": "amagami-san-chi-no-enmusubi",
-        "season": "1",
-        "langage": "vostfr"
-    },
-    {
-        "name": "365-days-to-the-wedding",
-        "season": "1",
-        "langage": "vostfr"
-    },
-    {
         "name": "none",
         "season": "1",
         "langage": "vostfr"

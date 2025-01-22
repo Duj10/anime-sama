@@ -261,134 +261,158 @@ class downloader:
         return status
 
     def vidmoly_downloader(self, path, url):
+     # Cette méthode est définie pour gérer le téléchargement depuis Vidmoly, mais elle est actuellement vide.
         pass
 
     def sendvid_downloader(self, path, url):
+    # Cette méthode gère le téléchargement des vidéos depuis Sendvid.
         def _init_(path, url):
-            mp4_url = extract_mp4_url(url=url)
-
-            status = downloading(path=path, url=mp4_url)
-            return status
+        # Initialisation : extrait l'URL du fichier MP4 et démarre le téléchargement.
+            mp4_url = extract_mp4_url(url=url) # Appelle la fonction pour obtenir l'URL du fichier vidéo MP4.
+            status = downloading(path=path, url=mp4_url) # Télécharge la vidéo à l'emplacement spécifié.
+            return status # Retourne le statut du téléchargement.
 
         def extract_mp4_url(url):
-            response = requests.get(url)
-            response.raise_for_status()
-            soup = BeautifulSoup(response.content, 'html.parser')
+            # Extrait l'URL directe du fichier MP4 depuis la page HTML.
+            response = requests.get(url) # Envoie une requête GET à l'URL.
+            response.raise_for_status() # Vérifie que la requête a réussi, sinon lève une exception.
+            soup = BeautifulSoup(response.content, 'html.parser') # Analyse le contenu HTML.
+            # Recherche un tag <meta> avec la propriété "og:video", qui contient l'URL de la vidéo.
             meta_tag = soup.find("meta", property="og:video")
+            # Si trouvé, retourne l'attribut "content" contenant l'URL, sinon retourne None.
             mp4_url = meta_tag['content'] if meta_tag else None
             return mp4_url
         
         def downloading(url, path):
-            logger = logging.getLogger(f"sendvid_downloader")
-            urllib3_logger = logging.getLogger("urllib3")
-            urllib3_logger.setLevel(logging.WARNING)
+        # Télécharge le fichier depuis une URL vers un chemin local.
+            logger = logging.getLogger(f"sendvid_downloader") # Initialise un logger pour cette fonction.
+            urllib3_logger = logging.getLogger("urllib3") # Configure le logger d'urllib3.
+            urllib3_logger.setLevel(logging.WARNING) # Réduit les logs d'urllib3 au niveau WARNING.
             try:
-                http = urllib3.PoolManager()
-                response = http.request('GET', url, preload_content=False)
-                if response.status == 200:
+                http = urllib3.PoolManager()  # Initialise un gestionnaire de connexion HTTP.
+                response = http.request('GET', url, preload_content=False) # Envoie une requête GET sans charger tout le contenu en mémoire.
+                if response.status == 200: # Vérifie que la réponse HTTP est OK.
                     #total_size = int(response.headers.get('content-length', 0))
-                    block_size = 1048576
-                    with open(path, "wb") as f:
-                        for block_num, data in enumerate(response.stream(block_size), 1):
-                            f.write(data)
-                    return True
+                    block_size = 1048576 # Définit la taille des blocs à télécharger (1 MB par bloc).
+                    with open(path, "wb") as f: # Ouvre le fichier de destination en mode écriture binaire.
+                        for block_num, data in enumerate(response.stream(block_size), 1): # Télécharge les données par blocs.
+                            f.write(data) # Écrit chaque bloc dans le fichier.
+                    return True # Indique que le téléchargement a réussi.
                 else:
-                    logger.error(f"Url response: {response.status}")
+                    logger.error(f"Url response: {response.status}") # Log une erreur si le statut HTTP n'est pas OK.
                     return False
             except HTTPError as e:
-                logger.error(f"HTTP Error occurred during download: {e}")
+                logger.error(f"HTTP Error occurred during download: {e}") # Log une erreur HTTP.
                 return False
             except URLError as e:
-                logger.error(f"URL Error occurred during download: {e}")
+                logger.error(f"URL Error occurred during download: {e}")  # Log une erreur d'URL.
                 return False
             except Exception as e:
-                logger.error(f"Exception Error occurred during download: {e}")
+                logger.error(f"Exception Error occurred during download: {e}")  # Log toute autre exception.
                 return False
 
+        # Démarre le processus d'initialisation pour télécharger la vidéo.
         status = _init_(path=path, url=url)
-        return status
+        return status  # Retourne le statut final du téléchargement.
 
  
 class main:
     def __init__(self, times):
-        script_dir = os.path.dirname(sys.argv[0])
+        # Initialisation de la classe principale.
+        script_dir = os.path.dirname(sys.argv[0]) # Obtient le répertoire du script.
 
+        # Configure le logger principal pour enregistrer les logs dans un fichier et sur la console.
         log_filename = datetime.now().strftime('app_%Y-%m-%d_%H-%M-%S.log')
-        logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s - %(name)s %(message)s', handlers=[logging.StreamHandler(), logging.FileHandler(f"{script_dir}/data/logs/{log_filename}")])
-        logger = logging.getLogger("init")
+        logging.basicConfig(
+            level=logging.INFO,
+            format='%(asctime)s %(levelname)s - %(name)s %(message)s',
+            handlers=[
+                logging.StreamHandler(),  # Affiche les logs dans la console. 
+                logging.FileHandler(f"{script_dir}/data/logs/{log_filename}")]) # Enregistre les logs dans un fichier.
+        logger = logging.getLogger("init") # Initialise un logger pour l'initialisation.
 
-        anime_json = f'{script_dir}/data/anime.json'
-        as_base_url = "https://anime-sama.fr/catalogue/"
-        episode_js = f'{script_dir}/data/download/episode.js'
+        # Définit les chemins et URL nécessaires au script.
+        anime_json = f'{script_dir}/data/anime.json' # Fichier contenant la liste des animes.
+        as_base_url = "https://anime-sama.fr/catalogue/" # URL de base pour les animes.
+        episode_js = f'{script_dir}/data/download/episode.js' # Fichier temporaire pour les épisodes.
 
+        # Initialise un gestionnaire de téléchargement avec 4 threads.
         self.downloader = downloader(nombre_threads=4)
 
+         # Boucle principale : exécute le traitement et attend entre chaque itération.
         while True:
             self.start(script_dir, anime_json, as_base_url, episode_js)
             self.countdown_timer(times)
 
     def countdown_timer(self, seconds):
+        # Affiche un compte à rebours en secondes avant de redémarrer le traitement.
         logger = logging.getLogger("timer")
         while seconds:
-            hours, remainder = divmod(seconds, 3600)
+            hours, remainder = divmod(seconds, 3600) # Convertit les secondes en heures, minutes et secondes.
             mins, secs = divmod(remainder, 60)
-            timer = f'{hours:02d}:{mins:02d}:{secs:02d}'
-            print(timer, end="\r")
-            time.sleep(1)
+            timer = f'{hours:02d}:{mins:02d}:{secs:02d}' # Formate le temps en hh:mm:ss.
+            print(timer, end="\r")  # Affiche le compte à rebours sur la même ligne.
+            time.sleep(1)  # Attend une seconde.
             seconds -= 1
-        logger.info("starting traitement")
+        logger.info("starting traitement")  # Log que le traitement va démarrer.
 
     def start(self, script_dir, anime_json, as_base_url, episode_js):
+        # Démarre le traitement pour chaque anime.
         logger = logging.getLogger(f"Anime Traitement")
-        anime_infos = self.build_url(as_base_url=as_base_url, anime_json=anime_json)
-        queue = []
+        anime_infos = self.build_url(as_base_url=as_base_url, anime_json=anime_json) # Récupère les informations des animes.
+        queue = []  # Initialise une file d'attente pour les tâches de téléchargement.
         if anime_infos:
-            for anime_info in anime_infos:
+            for anime_info in anime_infos:  # Parcourt chaque anime pour vérifier les nouveaux épisodes.
                 logger = logging.getLogger(f"anime: {anime_info[1]} saison {anime_info[2]}")
                 logger.info(f"scan en cour")
                 logger.info(f"url: {anime_info[0]}")
 
+                # Définit les chemins des fichiers pour les données de téléchargement et d'anime.
                 download_path = f"{script_dir}/data/download/{anime_info[1]} s{anime_info[2]}.json"
                 anime_path = f"{script_dir}/data/anime/{anime_info[1]} s{anime_info[2]}.json"
 
+                # Vérifie si "episodes.js" est disponible pour cet anime.
                 is_download = self.find_episodejs(anime_info=anime_info, episode_js=episode_js)
-                if is_download == True:
+                if is_download == True: 
+                    # Extrait les liens des épisodes et compare les nouveaux épisodes.
                     self.extract_link(download_path=download_path, episode_js=episode_js)
-
                     new_episode = self.compare_json(download_path=download_path, anime_path=anime_path)
                     if new_episode:
-                        
-                        queue.append((anime_info, new_episode, anime_path))
+                        queue.append((anime_info, new_episode, anime_path))  # Ajoute à la file d'attente.
 
                     for numb, link in new_episode:
-                        logger.info(f"!!!! nouveaux !!!! episode {numb}, {link}")
-                logger.info(f"scan en terminer")
+                        logger.info(f"!!!! nouveaux !!!! episode {numb}, {link}") # Log les nouveaux épisodes.
+                logger.info(f"scan en terminer") # Log que le scan est terminé.
 
+            # Ajoute les nouveaux épisodes détectés dans la file d'attente du gestionnaire de téléchargement.
             for anime_info, new_episode, anime_path in queue:    
                 self.downloader._add_to_queue(anime_info, new_episode, anime_path)
         else:
-            logger.warning(f"anime.json is empty")
+            logger.warning(f"anime.json is empty") # Log un avertissement si la liste des animes est vide.
 
     
     def build_url(self, as_base_url, anime_json):
+        # Construit les URLs pour chaque anime à partir des données JSON.
          with open(anime_json, 'r') as file:
-            data = json.load(file)
+            data = json.load(file) # Charge les données du fichier JSON.
 
-            anime_info = []
-            for entry in data:
-                comment = entry.get("__comment")
+            anime_info = [] # Initialise la liste des informations d'animes.
+            for entry in data: # Parcourt chaque entrée du fichier JSON.
+                comment = entry.get("__comment") # Ignore les entrées marquées comme commentaire.
                 if comment: 
                     continue
+
+                # Récupère les informations nécessaires : nom, saison, langue.
                 name = entry.get('name')
-                if name == "none":
+                if name == "none":  # Ignore les entrées sans nom valide.
                     continue
                 season = entry.get('season')
                 langage = entry.get('langage')
+                # Construit l'URL complète pour cet anime.
                 url = f"{as_base_url}{name}/saison{season}/{langage}/"
+                anime_info.append((url, name, season, langage)) # Ajoute les informations à la liste.
 
-                anime_info.append((url, name, season, langage))
-
-            return anime_info
+            return anime_info # Retourne la liste des informations d'animes.
         
     def find_episodejs(self, anime_info, episode_js):
     # Récupère le fichier "episodes.js" pour un anime donné et le sauvegarde dans un fichier local.
@@ -407,59 +431,71 @@ class main:
                     # Si l'URL est relative, la convertir en URL absolue.
                     script_response = requests.get(url=script_url, stream=True)
                     
-                    if script_response.status_code == 200:
+                    if script_response.status_code == 200: # Vérifie si le téléchargement du fichier a réussi.
                         with open(episode_js, 'wb') as file:
-                            file.write(script_response.content)
-                        return True
+                            file.write(script_response.content)    # Sauvegarde le fichier localement.
+                        return True # Retourne True si le téléchargement est réussi.
             else:
+                # Si aucun tag <script> correspondant n'est trouvé, log un avertissement.
                 logger.warning(f"episode.js was not found: {script_url}")
                 return False
         else:
+            # Log un avertissement si la page principale n'est pas accessible.
             logger.warning(f"url not work: {anime_info[0]}")
             return False
          
     def extract_link(self, download_path, episode_js):
-        logger = logging.getLogger(f"Extract Link")
+        # Extrait les liens d'épisodes à partir du fichier "episodes.js" et les regroupe par domaine.
+        logger = logging.getLogger(f"Extract Link") # Initialise un logger pour cette fonction.
+        
+        # Lit le contenu du fichier "episodes.js".       
         with open(episode_js, 'r') as file:
             js_content = file.read()
         
+        # Crée un interpréteur JavaScript pour exécuter le contenu du fichier.
         context = js2py.EvalJs()
-        context.execute(js_content)
+        context.execute(js_content) # Exécute le code JavaScript contenu dans le fichier.
 
+        # Définit les variables d'épisodes à vérifier et les domaines pris en charge.
         variables_to_check = ['eps1', 'eps2', 'eps3', 'eps4', 'eps5', 'eps6', 'eps7', 'eps8']
         domains = {"video.sibnet.ru": [], "vidmoly.to": [], "sendvid.com": []}
 
         def count_domain_urls(python_array, domains):
-            counts = {domain: 0 for domain in domains.keys()}
-            for item in python_array:
-                if 'vk.com' in item:
+            # Compte le nombre de liens pour chaque domaine.
+            counts = {domain: 0 for domain in domains.keys()} # Initialise un compteur pour chaque domaine.
+            for item in python_array: # Parcourt chaque lien de l'array Python.
+                if 'vk.com' in item: # Ignore les liens de "vk.com"
                     continue 
-                for domain in counts.keys():
+                for domain in counts.keys(): # Vérifie si le lien appartient à un domaine connu.
                     if domain in item:
                         counts[domain] += 1
             return counts
 
         def is_matching_domain(url, domain):
+            # Vérifie si une URL appartient exactement à un domaine donné.
             if '://' in url:
-                url = url.split('://', 1)[1]
-            extracted_domain = url.split('/', 1)[0]
+                url = url.split('://', 1)[1] # Retire le protocole (http/https).
+            extracted_domain = url.split('/', 1)[0] # Extrait le domaine principal de l'URL.
             return extracted_domain == domain
         
         def number_urls(domain, url_list):
-            numbered_list = []
-            seen_urls = set()
-            for i, url in enumerate(url_list):
+            # Filtre et numérote les URLs uniques pour un domaine donné.
+            numbered_list = [] # Contient les URLs numérotées.
+            seen_urls = set() # Utilisé pour éviter les doublons.
+            for i, url in enumerate(url_list): # Parcourt chaque URL.
                 if url and url not in seen_urls and is_matching_domain(url, domain):
-                    numbered_list.append(url)
-                    seen_urls.add(url)
+                    numbered_list.append(url) # Ajoute l'URL si elle est unique et correspond au domaine.
+                    seen_urls.add(url) # Ajoute l'URL au set des URLs vues.
                 else:
-                    numbered_list.append(None)
+                    numbered_list.append(None) # Ajoute None pour les doublons ou URLs invalides.
             return numbered_list
         
 
-        for var_name in variables_to_check:
+        for var_name in variables_to_check: # Parcourt chaque variable d'épisodes.
             try:
+                # Récupère la variable JavaScript depuis le contexte.
                 js_object = getattr(context, var_name)
+                # Convertit la variable en tableau Python si nécessaire.
                 if isinstance(js_object, js2py.base.JsObjectWrapper):
                     js_array = list(js_object)
                 else:
@@ -468,52 +504,57 @@ class main:
                 if isinstance(js_array, str):
                     python_array = [js_array]
                 else:
-                    python_array = list(js_array)
+                    python_array = list(js_array) # Convertit en liste Python.
                 
-                counts = count_domain_urls(python_array, domains)
-                max_domain = max(counts, key=counts.get)
-                if counts[max_domain] > 0:
-                    domains[max_domain].extend(python_array)
-            except js2py.internals.simplex.JsException as e:
+                counts = count_domain_urls(python_array, domains) # Compte les URLs par domaine.
+                max_domain = max(counts, key=counts.get) # Trouve le domaine avec le plus de liens.
+                if counts[max_domain] > 0: # Si des liens sont trouvés pour ce domaine.
+                    domains[max_domain].extend(python_array) # Ajoute les liens à la liste du domaine.
+            except js2py.internals.simplex.JsException as e: # Ignore les erreurs de parsing JavaScript.
                 pass
         
-        max_length = max(len(urls) for urls in domains.values())
-        for domain in domains:
+        max_length = max(len(urls) for urls in domains.values()) # Trouve la longueur maximale parmi les listes de domaines.
+        for domain in domains: # Équilibre les longueurs des listes pour chaque domaine.
             while len(domains[domain]) < max_length:
-                domains[domain].append(None)
+                domains[domain].append(None) # Ajoute None aux listes plus courtes.
 
+        # Numérote les liens pour chaque domaine.
         numbered_domains = {domain: number_urls(domain, domains[domain]) for domain in domains.keys()}
+        # Construit un dictionnaire JSON pour organiser les liens par numéro d'épisode.
         json_output = {}
         for i in range(max_length):
             json_output[str(i + 1)] = [numbered_domains["video.sibnet.ru"][i] if i < len(numbered_domains["video.sibnet.ru"]) else None,numbered_domains["vidmoly.to"][i] if i < len(numbered_domains["vidmoly.to"]) else None,numbered_domains["sendvid.com"][i] if i < len(numbered_domains["sendvid.com"]) else None]
         
+        # Remplace les valeurs None par "none" dans le dictionnaire JSON.
         for key in json_output:
             json_output[key] = [url if url is not None else "none" for url in json_output[key]]
-        
+        # Sauvegarde le résultat dans un fichier JSON.
         with open(download_path, 'w') as json_file:
             json.dump(json_output, json_file, indent=4)
 
     def compare_json(self, download_path, anime_path):
+        # Compare deux fichiers JSON pour trouver les nouveaux épisodes.
         with open(download_path, 'r', encoding='utf-8') as file1:
-            data1 = json.load(file1)
+            data1 = json.load(file1) # Charge les données JSON du fichier téléchargé.
         
+        # Si le fichier cible n'existe pas, le créer avec une structure vide.
         if not os.path.exists(anime_path):
             json_structure = {}
             with open(anime_path, 'w') as json_file:
                 json.dump(json_structure, json_file, indent=4)
 
         with open(anime_path, 'r', encoding='utf-8') as file2:
-            data2 = json.load(file2)
+            data2 = json.load(file2) # Charge les données JSON du fichier existant.
             
-        new_entries = []
+        new_entries = [] # Stocke les nouveaux épisodes détectés.
         
-        keys2 = {int(k) for k in data2.keys() if k.isdigit()}
+        keys2 = {int(k) for k in data2.keys() if k.isdigit()}  # Récupère les clés numériques du fichier existant.
         
-        for key in data1:
+        for key in data1: # Parcourt chaque clé du fichier téléchargé.
             num_key = int(key)
-            if num_key not in keys2:
-                new_entries.append((key, data1[key]))
-        return new_entries
+            if num_key not in keys2:  # Vérifie si la clé n'est pas dans le fichier existant.
+                new_entries.append((key, data1[key])) # Ajoute la clé et les données associées.
+        return new_entries  # Retourne les nouveaux épisodes trouvés.
 
 if __name__ == "__main__":
-    main(times=3600)
+    main(times=3600) # Initialise la boucle principale avec un délai de 3600 secondes (1 heure).
