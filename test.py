@@ -17,51 +17,82 @@ from datetime import datetime
 
 class downloader:
     def __init__(self, nombre_threads=4):
+         # File d'attente partagée entre les threads pour gérer les tâches de téléchargement
         self.download_queue = queue.Queue()
+        
+         # Liste pour stocker les objets Thread créés
         self.threads = []
+
+         # Nombre de threads que le gestionnaire va lancer
         self.nombre_threads = nombre_threads
+
+         # Initialisation et démarrage des threads pour traiter les tâches de la file
         self._initialize_threads()
 
 
     def _initialize_threads(self):
+         # Boucle pour créer un nombre de threads égal à self.nombre_threads
         for _ in range(self.nombre_threads):
+             # Crée un thread avec pour cible la méthode _gestionnaire_queue
+             # Le paramètre daemon=True permet d'arrêter les threads automatiquement lorsque le programme principal se termine
             thread = threading.Thread(target=self._gestionnaire_queue, daemon=True)
+            
+             # Démarre le thread (il commence à exécuter _gestionnaire_queue en parallèle)
             thread.start()
+
+             # Ajoute le thread à la liste des threads pour un suivi ou une gestion ultérieure
             self.threads.append(thread)
     
     def _gestionnaire_queue(self):
-        while True:
+        while True: # Boucle infinie pour gérer en permanence les tâches dans la file d'attente
             try:
+                 # Récupère une tâche dans la file avec un timeout de 1 seconde
                 episode_info, episode_urls = self.download_queue.get(timeout=1)
+
+                 # Déstructure les informations sur l'épisode et ses URL
                 name, episode_number, episode_path, anime_json = episode_info
+                
+                 # Initialise un logger spécifique à cet épisode
                 logger = logging.getLogger(f"anime: {name} {episode_number}")
                 logger.info(f"download en cour")
 
+                 # Vérifie si l'URL Sibnet est valide
                 sibnet, vidmoly, sendvid = episode_urls
                 if sibnet != "none":
                     status = self.sibnet_downloader(path=episode_path, url=sibnet)
-                    if status == True:
+                    if status == True: # Si le téléchargement a réussi
                         logger.info(f"sibnet download fini")
                         self._wirte_in_anime_json(number=episode_number, url=sibnet, anime_json=anime_json)
-                        self.download_queue.task_done()
+                        self.download_queue.task_done() # Marque la tâche comme terminée
                         continue
+                
+                 # Vérifie si l'URL Vidmoly est valide (non implémenté ici)
                 if vidmoly != "none":
-                    pass
+                    pass # Rien n'est fait ici
+                
+                 # Vérifie si l'URL Sendvid est valide
                 if sendvid != "none": 
                     status = self.sendvid_downloader(path=episode_path, url=sendvid)
-                    if status == True:
+                    if status == True: # Si le téléchargement a réussi
                         logger.info(f"sendvid download fini")
                         self._wirte_in_anime_json(number=episode_number, url=sendvid, anime_json=anime_json)
-                        self.download_queue.task_done()
+                        self.download_queue.task_done()  # Marque la tâche comme terminée
                         continue
+                
+                 # Si aucune URL n'a fonctionné
                 else:
                     logger.warning(f"no url work for")
                     self.download_queue.task_done()
+                    
                     continue
-                self.download_queue.task_done()
+                self.download_queue.task_done() # Marque la tâche comme terminée (redondant ici)
                 continue
+
+             # Si la file d'attente est vide, réessaie après 1 seconde
             except queue.Empty:
                 continue
+
+             # Gestion générique des exceptions
             except Exception as e:
                 logger.error(f"Erreur dans le traitement de la queue: {e}")
                 self.download_queue.task_done()
@@ -69,7 +100,9 @@ class downloader:
 
     
     def _add_to_queue(self, anime_info, new_episode, anime_json):
+         # Initialise un logger pour suivre les opérations sur cet anime et sa saison
         logger = logging.getLogger(f"anime: {anime_info[1]} season {anime_info[2]}")
+         # Détermine le chemin où les épisodes seront stockés en fonction de la langue
         if anime_info[3] == "vostfr":
             anime_path = rf"C:\Users\dahoe\Documents\code\anime-sama\vo/{anime_info[1]}/season {anime_info[2]}/"
         elif anime_info[3] == "vf":
@@ -79,96 +112,147 @@ class downloader:
         elif anime_info[3] == "vf2":
             anime_path = rf"C:\Users\dahoe\Documents\code\anime-sama\vf/{anime_info[1]}/season {anime_info[2]}/"
         else:
+            # Avertit si la langue n'est pas prise en charge
             logger.warning(f"langage not supported: {anime_info[3]}")
         
+         # Crée le répertoire cible si nécessaire
         if not os.path.exists(anime_path):
             os.makedirs(anime_path)
 
+         # Ajoute chaque épisode dans la file de téléchargement
         for number, episode_urls in new_episode:
+             # Détermine le chemin complet du fichier de l'épisode
             episode_path = f"{anime_path}{anime_info[1]} s{anime_info[2]} {int(number):02d}.mp4"
-
+            
+             # Crée une structure avec les informations de l'épisode
             episode_info = ((f"{anime_info[1]} season {anime_info[2]}", f"{int(number):02d}", episode_path, anime_json))
             
+             # Ajoute l'épisode et ses URLs dans la file de téléchargement
             self.download_queue.put((episode_info, episode_urls))
     
     def _wirte_in_anime_json(self, number, url, anime_json):
+         # Initialise un logger pour suivre l'opération sur ce fichier JSON
         logger = logging.getLogger(f"{anime_json} | {number}:{url} ")
+
         try:
+             # Ouvre le fichier JSON en mode lecture/écriture avec encodage UTF-8
             with open(anime_json, 'r+', encoding='utf-8') as file:
                 data = json.load(file)
 
+             # Met à jour le dictionnaire avec le nouvel épisode et son URL
             data[number] = url
             
+             # Réécrit le fichier JSON avec les nouvelles données, formatées proprement
             with open(anime_json, 'w') as file:
                 json.dump(data, file, indent=4)
+
+             # Gestion des exceptions possibles
         except PermissionError as e:
+             # Si l'accès au fichier est refusé
             logger.warning(f"Erreur de permission : {e}")
         except FileNotFoundError as e:
+             # Si le fichier JSON n'existe pas
             logger.error(f"Fichier non trouvé : {e}")
         except json.JSONDecodeError as e:
+             # Si le contenu du fichier JSON est corrompu ou mal formé
             logger.error(f"Erreur de décodage JSON : {e}")
         except Exception as e:
+             # Pour toute autre erreur inattendue
             logger.error(f"Erreur inattendue : {e}")
 
     def sibnet_downloader(self, path, url):
         def _init_(path, url):
+             # Définit les en-têtes HTTP pour simuler une requête légitime venant d'un navigateur
             headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.190 Safari/537.36", "Referer": f"https://video.sibnet.ru"}
+            
+             # Tente d'extraire l'URL directe du fichier MP4 depuis la page HTML
             mp4_url = extract_mp4_url(url=url)
 
+             # Si l'URL MP4 n'a pas été trouvée, retourne un échec
             if mp4_url == False:
                 status = False
             else:
+                 # Sinon, démarre le téléchargement avec les en-têtes et l'URL extraits
                 status = downloading(headers=headers, url=mp4_url, path=path)
             return status
 
         def extract_mp4_url(url):
             logger = logging.getLogger(f"sibnet_downloader")
             try:
+                 # Effectue une requête GET vers l'URL de la vidéo
                 response = requests.get(url)
                 response.raise_for_status()
+
+                 # Parse le contenu HTML pour chercher les scripts
                 soup = BeautifulSoup(response.content, 'html.parser')
                 scripts = soup.find_all('script', type="text/javascript")
+
+                 # Parcourt chaque script pour trouver l'URL de la vidéo MP4
                 for script in scripts:
                     script_content = script.string
                     if script_content:
+                         # Recherche de l'URL de la vidéo dans les scripts
                         match = re.search(r'player\.src\(\[\{src: "(.*?)"', script_content)
                         if match:
-                            video_url = match.group(1)
+                            video_url = match.group(1) # Capture l'URL dans le script
                             url = f"https://video.sibnet.ru{video_url}"
                             return url
             except HTTPError as e:
+                 # Logue une erreur HTTP si la requête échoue
                 logger.error(f"HTTP Error occurred during download: {e}")
                 return False
             except URLError as e:
+                 # Logue une erreur d'URL si elle est invalide
                 logger.error(f"URL Error occurred during download: {e}")
                 return False
             except Exception as e:
+                 # Capture toute autre exception imprévue
                 logger.error(f"Exception Error occurred during download: {e}")
                 return False
         
         def downloading(headers, url, path):
+             # Logger pour suivre les opérations spécifiques à Sibnet
             logger = logging.getLogger(f"sibnet_downloader")
+             # Réduit la verbosité des logs pour les requêtes HTTP
             urllib3_logger = logging.getLogger("urllib3")
             urllib3_logger.setLevel(logging.WARNING)
+
             try:
+                 # Initialise un gestionnaire de connexions HTTP (pool de connexions)
                 http = urllib3.PoolManager()
+                 # Effectue une requête GET vers l'URL avec les en-têtes spécifiés
                 response = http.request('GET', url, headers=headers, preload_content=False)
+
+                 # Vérifie si la réponse HTTP indique un succès (code 200)
                 if response.status == 200:
                     #total_size = int(response.headers.get('content-length', 0))
+                     # Définition de la taille des blocs à télécharger (1 MB par bloc)
                     block_size = 1048576
+
+                     # Ouvre un fichier en mode écriture binaire pour enregistrer les données
                     with open(path, "wb") as f:
+                         # Parcourt les données téléchargées par blocs et les écrit dans le fichier
                         for block_num, data in enumerate(response.stream(block_size), 1):
                             f.write(data)
+
+                     # Indique que le téléchargement a réussi
                     return True
                 else:
+                     # Logue une erreur si le statut HTTP n'est pas 200
                     logger.error(f"Url response: {response.status}")
                     return False
+
+             # Gestion des erreurs d'URL (malformée ou inaccessible)
             except HTTPError as e:
                 logger.error(f"HTTP Error occurred during download: {e}")
                 return False
+
+             # Gestion des erreurs d'URL (malformée ou inaccessible)
             except URLError as e:
                 logger.error(f"URL Error occurred during download: {e}")
                 return False
+
+             # Gestion des erreurs générales imprévues
             except Exception as e:
                 logger.error(f"Exception Error occurred during download: {e}")
                 return False
@@ -307,15 +391,20 @@ class main:
             return anime_info
         
     def find_episodejs(self, anime_info, episode_js):
-        logger = logging.getLogger(f"anime: {anime_info[1]} saison {anime_info[2]}")
+    # Récupère le fichier "episodes.js" pour un anime donné et le sauvegarde dans un fichier local.
+        logger = logging.getLogger(f"anime: {anime_info[1]} saison {anime_info[2]}") # Initialise un logger pour cet anime.
+        # Envoie une requête GET à l'URL principale de l'anime pour récupérer le contenu de la page.
         response = requests.get(anime_info[0])
-        if response.status_code == 200:
-            soup = BeautifulSoup(response.content, 'html.parser')
+        if response.status_code == 200: # Vérifie si la requête a réussi (statut 200).
+            soup = BeautifulSoup(response.content, 'html.parser') # Parse le HTML de la réponse pour l'analyser.
+            # Recherche un tag <script> dont l'attribut "src" contient "episodes.js".
             script_tag = soup.find('script', src=lambda x: x and 'episodes.js?' in x)
-            if script_tag:
-                script_url = script_tag['src']
+            if script_tag: # Si un tel tag est trouvé.
+                script_url = script_tag['src']# Extrait l'URL du fichier "episodes.js".
+                # Si l'URL est relative, la convertir en URL absolue.
                 if not script_url.startswith('http'):
                     script_url = anime_info[0].rstrip('/') + '/' + script_url.lstrip('/')
+                    # Si l'URL est relative, la convertir en URL absolue.
                     script_response = requests.get(url=script_url, stream=True)
                     
                     if script_response.status_code == 200:
