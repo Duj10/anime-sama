@@ -1,6 +1,6 @@
 [
 
-    {"__comment": "en desou seulment auto download des serie qui sorte"},
+    {"__comment": "en dessous seulment auto download des series qui sortent"},
 
     {
         "name": "none",
@@ -14,7 +14,7 @@
     },
 
 
-    {"__comment": "en desou seulment simple download si download tu peux ramplacer par un autre"},
+    {"__comment": "en dessous seulment simple download si none tu peux ramplacer par un autre"},
     {
         "name": "none",
         "season": "1",
